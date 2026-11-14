@@ -1,4 +1,4 @@
-package du.coral.bcp.client;
+package du.coral.bcb.client;
 
 public enum DocumentType {
     CPF,

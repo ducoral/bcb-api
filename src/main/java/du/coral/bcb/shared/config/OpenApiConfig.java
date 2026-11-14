@@ -1,4 +1,4 @@
-package du.coral.bcp.shared.config;
+package du.coral.bcb.shared.config;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;

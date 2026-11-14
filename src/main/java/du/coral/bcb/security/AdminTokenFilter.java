@@ -1,4 +1,4 @@
-package du.coral.bcp.security;
+package du.coral.bcb.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -16,7 +16,7 @@ import java.io.IOException;
 @Component
 public class AdminTokenFilter extends OncePerRequestFilter {
 
-    private static final String ADMIN_PATH = "/admin";
+    private static final String ADMIN_PATH = "/clients/";
 
     @Value("${app.admin.token:admin-token}")
     private String adminToken;
@@ -33,12 +33,10 @@ public class AdminTokenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain chain) throws ServletException, IOException {
-
-        var token = request
-                .getHeader(HttpHeaders.AUTHORIZATION)
-                .replace("Bearer ", "");
-        var isTokenValido = adminToken.equals(token);
-        if (!isTokenValido) {
+        var token = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (token != null)
+            token = token.replace("Bearer ", "");
+        if (!adminToken.equals(token)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");

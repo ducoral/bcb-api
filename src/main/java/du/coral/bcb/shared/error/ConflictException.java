@@ -1,4 +1,4 @@
-package du.coral.bcp.shared.error;
+package du.coral.bcb.shared.error;
 
 public class ConflictException extends RuntimeException {
 

@@ -1,4 +1,4 @@
-package du.coral.bcp.client;
+package du.coral.bcb.client;
 
 import jakarta.persistence.*;
 
@@ -60,6 +60,19 @@ public class Client {
     }
 
     protected Client() {
+    }
+
+    public void update(ClientUpdate data) {
+        this.name = data.name();
+        this.documentId = data.documentId();
+        this.documentType = data.documentType();
+        this.planType = data.planType();
+        this.balance = data.balance();
+        this.limit = data.limit();
+        this.active = data.active();
+        if (data.password() != null) {
+            this.password = data.password();
+        }
     }
 
     public String getId() {

@@ -1,15 +1,15 @@
-package du.coral.bcp.client.web;
+package du.coral.bcb.client.web;
 
-import du.coral.bcp.client.Client;
-import du.coral.bcp.client.DocumentType;
-import du.coral.bcp.client.PlanType;
+import du.coral.bcb.client.Client;
+import du.coral.bcb.client.DocumentType;
+import du.coral.bcb.client.PlanType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 
 @Schema(description = "Dados para cadastro de cliente")
-public record ClientRequest(
+public record ClientCreateRequest(
         @Schema(description = "Identificador do cliente", example = "client123")
         @NotBlank @Size(max = 64)
         String id,

@@ -1,8 +1,8 @@
-package du.coral.bcp.client.web;
+package du.coral.bcb.client.web;
 
-import du.coral.bcp.client.Client;
-import du.coral.bcp.client.DocumentType;
-import du.coral.bcp.client.PlanType;
+import du.coral.bcb.client.Client;
+import du.coral.bcb.client.DocumentType;
+import du.coral.bcb.client.PlanType;
 
 import java.math.BigDecimal;
 

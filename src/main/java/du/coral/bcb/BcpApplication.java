@@ -1,4 +1,4 @@
-package du.coral.bcp;
+package du.coral.bcb;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
