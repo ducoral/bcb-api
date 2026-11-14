@@ -1,31 +1,31 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: bcp-api-db
+    container_name: bcb-api-db
     environment:
-      POSTGRES_DB: bcp
-      POSTGRES_USER: bcp
-      POSTGRES_PASSWORD: bcp123
+      POSTGRES_DB: bcb
+      POSTGRES_USER: bcb
+      POSTGRES_PASSWORD: bcb123
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bcp -d bcp"]
+      test: ["CMD-SHELL", "pg_isready -U bcb -d bcb"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   app:
-    image: ducoral/bcp-api:1.0.0
-    container_name: bcp-api
+    image: ducoral/bcb-api:1.0
+    container_name: bcb-api
     depends_on:
       db:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/bcp
-      SPRING_DATASOURCE_USERNAME: bcp
-      SPRING_DATASOURCE_PASSWORD: bcp123
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/bcb
+      SPRING_DATASOURCE_USERNAME: bcb
+      SPRING_DATASOURCE_PASSWORD: bcb123
     ports:
       - "8080:8080"
 
