@@ -34,7 +34,10 @@ public class AdminTokenFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain chain) throws ServletException, IOException {
 
-        var isTokenValido = adminToken.equals(request.getHeader(HttpHeaders.AUTHORIZATION));
+        var token = request
+                .getHeader(HttpHeaders.AUTHORIZATION)
+                .replace("Bearer ", "");
+        var isTokenValido = adminToken.equals(token);
         if (!isTokenValido) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
