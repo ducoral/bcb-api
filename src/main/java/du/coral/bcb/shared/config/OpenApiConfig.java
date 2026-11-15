@@ -14,6 +14,9 @@ public class OpenApiConfig {
     public static final String ADMIN_AUTH_DESC =
             "Informe apenas o token (ex.: admin-token). O prefixo `Bearer` é adicionado automaticamente.";
 
+    public static final String CLIENT_JWT = "clientJwt";
+    public static final String CLIENT_JWT_DESC = "JWT obtido em POST /auth/login";
+
     @Bean
     OpenAPI openAPI() {
         return new OpenAPI()
@@ -25,6 +28,12 @@ public class OpenApiConfig {
                         .addSecuritySchemes(ADMIN_AUTH, new SecurityScheme()
                                 .type(SecurityScheme.Type.HTTP)
                                 .scheme("bearer")
-                                .description(ADMIN_AUTH_DESC)));
+                                .description(ADMIN_AUTH_DESC))
+                        .addSecuritySchemes(CLIENT_JWT, new SecurityScheme()
+                                .type(SecurityScheme.Type.HTTP)
+                                .scheme("bearer")
+                                .bearerFormat("JWT")
+                                .description(CLIENT_JWT_DESC))
+                );
     }
 }

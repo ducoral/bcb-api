@@ -62,7 +62,7 @@ public class Client {
     protected Client() {
     }
 
-    public void update(ClientUpdate data) {
+    public void update(ClientUpdate data, String encodedPassword) {
         this.name = data.name();
         this.documentId = data.documentId();
         this.documentType = data.documentType();
@@ -70,8 +70,8 @@ public class Client {
         this.balance = data.balance();
         this.limit = data.limit();
         this.active = data.active();
-        if (data.password() != null) {
-            this.password = data.password();
+        if (encodedPassword != null) {
+            this.password = encodedPassword;
         }
     }
 
@@ -95,8 +95,8 @@ public class Client {
         return password;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public void setPassword(String encodedPassword) {
+        this.password = encodedPassword;
     }
 
     public String getDocumentId() {

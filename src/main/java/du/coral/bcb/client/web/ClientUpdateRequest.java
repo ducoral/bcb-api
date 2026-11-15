@@ -17,6 +17,7 @@ public record ClientUpdateRequest(
 
         @Schema(description = "Nova senha. Se omitida, a senha atual é mantida",
                 accessMode = Schema.AccessMode.WRITE_ONLY)
+        @Size(max = 72)
         String password,
 
         @Schema(description = "CPF (11 dígitos) ou CNPJ (14 dígitos), somente números", example = "12345678000199")

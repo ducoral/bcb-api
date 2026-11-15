@@ -1,4 +1,4 @@
-package du.coral.bcb.security;
+package du.coral.bcb.client;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -14,7 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 
 @Component
-public class AdminTokenFilter extends OncePerRequestFilter {
+public class ClientFilter extends OncePerRequestFilter {
 
     private static final String ADMIN_PATH = "/clients/";
 

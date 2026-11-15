@@ -21,7 +21,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.jwt.secret=test-secret-test-secret-test-secret-0123")
 @Testcontainers
 class ClientControllerIT {
 
@@ -40,16 +40,16 @@ class ClientControllerIT {
             """;
 
     static final String UPDATE_BODY = """
-        {
-          "name": "Empresa ABC S.A.",
-          "documentId": "12345678000199",
-          "documentType": "CNPJ",
-          "planType": "postpaid",
-          "balance": 0,
-          "limit": 5000.00,
-          "active": false
-        }
-        """;
+            {
+              "name": "Empresa ABC S.A.",
+              "documentId": "12345678000199",
+              "documentType": "CNPJ",
+              "planType": "postpaid",
+              "balance": 0,
+              "limit": 5000.00,
+              "active": false
+            }
+            """;
 
     @Container
     @ServiceConnection
@@ -77,7 +77,7 @@ class ClientControllerIT {
 
     @Test
     void shouldCreateClientAndPersistIt() throws Exception {
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isCreated())
@@ -96,6 +96,15 @@ class ClientControllerIT {
     }
 
     @Test
+    void shouldStorePasswordHashed() throws Exception {
+        mockMvc.perform(post("/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isCreated());
+        assertThat(passwordOf("client123")).startsWith("$2").isNotEqualTo("senha123");
+    }
+
+    @Test
     void shouldApplyDefaultsWhenOptionalFieldsAreOmitted() throws Exception {
         String body = """
                 {
@@ -108,7 +117,7 @@ class ClientControllerIT {
                 }
                 """;
 
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isCreated())
@@ -121,7 +130,7 @@ class ClientControllerIT {
     void shouldReturnConflictWhenIdAlreadyExists() throws Exception {
         repository.save(existingClient("client123", "99999999000100"));
 
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isConflict());
@@ -133,7 +142,7 @@ class ClientControllerIT {
     void shouldReturnConflictWhenDocumentAlreadyExists() throws Exception {
         repository.save(existingClient("other-id", "12345678000199"));
 
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY))
                 .andExpect(status().isConflict());
@@ -145,7 +154,7 @@ class ClientControllerIT {
     void shouldReturnBadRequestWhenDocumentDoesNotMatchType() throws Exception {
         String body = VALID_BODY.replace("\"CNPJ\"", "\"CPF\"");
 
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -158,7 +167,7 @@ class ClientControllerIT {
     void shouldReturnBadRequestWhenDocumentHasInvalidFormat() throws Exception {
         String body = VALID_BODY.replace("12345678000199", "123.456.780/0019");
 
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -169,7 +178,7 @@ class ClientControllerIT {
     void shouldReturnBadRequestWhenBalanceIsNegative() throws Exception {
         String body = VALID_BODY.replace("\"balance\": 100.00", "\"balance\": -1");
 
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
@@ -178,7 +187,7 @@ class ClientControllerIT {
 
     @Test
     void shouldReturnBadRequestWhenRequiredFieldsAreMissing() throws Exception {
-        mockMvc.perform(post("/clients/")
+        mockMvc.perform(post("/clients")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
@@ -193,7 +202,7 @@ class ClientControllerIT {
         repository.save(existingClient("client-b", "22222222000122"));
         repository.save(existingClient("client-a", "11111111000111"));
 
-        mockMvc.perform(get("/clients/"))
+        mockMvc.perform(get("/clients"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].id").value("client-a"))
@@ -203,7 +212,7 @@ class ClientControllerIT {
 
     @Test
     void shouldReturnEmptyListWhenThereAreNoClients() throws Exception {
-        mockMvc.perform(get("/clients/"))
+        mockMvc.perform(get("/clients"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }

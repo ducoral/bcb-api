@@ -11,15 +11,18 @@ import java.math.BigDecimal;
 @Schema(description = "Dados para cadastro de cliente")
 public record ClientCreateRequest(
         @Schema(description = "Identificador do cliente", example = "client123")
-        @NotBlank @Size(max = 64)
+        @NotBlank
+        @Size(max = 64)
         String id,
 
         @Schema(description = "Razão social ou nome", example = "Empresa ABC Ltda")
-        @NotBlank @Size(max = 255)
+        @NotBlank
+        @Size(max = 255)
         String name,
 
         @Schema(description = "Senha de acesso", example = "senha123", accessMode = Schema.AccessMode.WRITE_ONLY)
         @NotBlank
+        @Size(max = 72)
         String password,
 
         @Schema(description = "CPF (11 dígitos) ou CNPJ (14 dígitos), somente números", example = "12345678000199")

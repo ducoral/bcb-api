@@ -22,7 +22,7 @@ import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping("/clients/")
+@RequestMapping("/clients")
 @Tag(name = "Clientes (admin)", description = "Gerenciamento administrativo de clientes")
 @SecurityRequirement(name = OpenApiConfig.ADMIN_AUTH)
 public class ClientController {
