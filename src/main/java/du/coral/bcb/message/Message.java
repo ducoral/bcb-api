@@ -122,4 +122,9 @@ public class Message implements Persistable<String> {
     public BigDecimal getCost() {
         return cost;
     }
+
+    @Override
+    public String toString() {
+        return "%s [%s]".formatted(content, priority);
+    }
 }
