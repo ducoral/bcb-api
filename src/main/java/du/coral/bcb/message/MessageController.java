@@ -36,14 +36,20 @@ public class MessageController {
                     content = @Content(mediaType = "application/problem+json",
                             schema = @Schema(implementation = ProblemDetail.class))),
             @ApiResponse(responseCode = "401", description = "Token ausente, inválido ou expirado",
-                    content = @Content)
+                    content = @Content),
+            @ApiResponse(responseCode = "402", description = "Saldo (pré-pago) ou limite mensal (pós-pago) insuficiente",
+                    content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
+            @ApiResponse(responseCode = "403", description = "Cliente inativo",
+                    content = @Content(mediaType = "application/problem+json",
+                            schema = @Schema(implementation = ProblemDetail.class))),
     })
     @PostMapping
     public ResponseEntity<MessageResponse> create(
             @RequestAttribute(JwtAuthFilter.CLIENT_ID_ATTRIBUTE) String clientId,
             @Valid @RequestBody MessageRequest request) {
         var saved = service
-                .send(clientId, request.conversationId(), request.recipientId(), request.content(), request.priority());
+                .send(clientId, request.recipientId(), request.content(), request.priority());
         return ResponseEntity
                 .accepted()
                 .body(MessageResponse.from(saved));

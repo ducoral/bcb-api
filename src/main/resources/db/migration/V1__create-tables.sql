@@ -8,6 +8,8 @@ CREATE TABLE client
     plan_type     VARCHAR(10)    NOT NULL,
     balance       NUMERIC(15, 2) NOT NULL DEFAULT 0,
     credit_limit  NUMERIC(15, 2) NOT NULL DEFAULT 0,
+    monthly_limit NUMERIC(15, 2) NOT NULL DEFAULT 0,
+    limit_period  DATE,
     active        BOOLEAN        NOT NULL DEFAULT TRUE,
 
     CONSTRAINT pk_client PRIMARY KEY (id),
@@ -17,7 +19,6 @@ CREATE TABLE client
 CREATE TABLE message
 (
     id              VARCHAR(64)    NOT NULL,
-    conversation_id VARCHAR(64)    NOT NULL,
     sender_id       VARCHAR(64)    NOT NULL,
     recipient_id    VARCHAR(64)    NOT NULL,
     content         VARCHAR(4000)  NOT NULL,

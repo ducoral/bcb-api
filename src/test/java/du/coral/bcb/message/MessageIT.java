@@ -4,6 +4,7 @@ import com.jayway.jsonpath.JsonPath;
 import du.coral.bcb.auth.JwtAuthFilter;
 import du.coral.bcb.auth.JwtService;
 import du.coral.bcb.auth.TokenStore;
+import du.coral.bcb.billing.MonthlyLimitResetJob;
 import du.coral.bcb.client.Client;
 import du.coral.bcb.client.ClientRepository;
 import du.coral.bcb.client.DocumentType;
@@ -15,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
@@ -22,8 +24,15 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,14 +46,35 @@ class MessageIT {
     @ServiceConnection
     static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
 
-    @Autowired WebApplicationContext context;
-    @Autowired MessageRepository messageRepository;
-    @Autowired ClientRepository clientRepository;
-    @Autowired MessageQueue queue;
-    @Autowired MessageQueueInitializer initializer;
-    @Autowired JwtService jwtService;
-    @Autowired TokenStore tokenStore;
-    @Autowired JwtAuthFilter jwtAuthFilter;
+    @Autowired
+    WebApplicationContext context;
+
+    @Autowired
+    MessageRepository messageRepository;
+
+    @Autowired
+    ClientRepository clientRepository;
+
+    @Autowired
+    MessageQueue queue;
+
+    @Autowired
+    MessageQueueInitializer initializer;
+
+    @Autowired
+    JwtService jwtService;
+
+    @Autowired
+    TokenStore tokenStore;
+
+    @Autowired
+    JwtAuthFilter jwtAuthFilter;
+
+    @Autowired
+    Clock clock;
+
+    @Autowired
+    MonthlyLimitResetJob resetJob;
 
     MockMvc mockMvc;
 
@@ -66,7 +96,6 @@ class MessageIT {
     void shouldPersistAndEnqueueMessageWithServerDefinedFields() throws Exception {
         var body = """
                 {
-                  "conversationId": "conv456",
                   "recipientId": "user789",
                   "content": "Olá, como vai?"
                 }
@@ -77,7 +106,6 @@ class MessageIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.conversationId").value("conv456"))
                 .andExpect(jsonPath("$.senderId").value("client123"))   // vem do token
                 .andExpect(jsonPath("$.recipientId").value("user789"))
                 .andExpect(jsonPath("$.content").value("Olá, como vai?"))
@@ -151,7 +179,6 @@ class MessageIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.conversationId").exists())
                 .andExpect(jsonPath("$.errors.recipientId").exists())
                 .andExpect(jsonPath("$.errors.content").exists());
 
@@ -202,6 +229,172 @@ class MessageIT {
         assertThat(queue.size()).isEqualTo(1);
     }
 
+    // ---------- Pré-pago
+    @Test
+    void shouldDebitBalanceForEachMessage() throws Exception {
+        seed(PlanType.PREPAID, "10.00", "0.00");
+
+        for (int i = 0; i < 5; i++) {
+            send("mensagem " + i).andExpect(status().isAccepted());
+        }
+
+        assertThat(balanceOf("client123")).isEqualByComparingTo("8.75");   // 10 - 5 x 0.25
+        assertThat(messageRepository.count()).isEqualTo(5);
+        assertThat(queue.size()).isEqualTo(5);
+    }
+
+    @Test
+    void shouldDebitUrgentCost() throws Exception {
+        seed(PlanType.PREPAID, "10.00", "0.00");
+        String body = validBody("urgente").replace("\"content\"", "\"priority\": \"urgent\", \"content\"");
+
+        mockMvc.perform(post("/messages")
+                        .header("Authorization", bearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isAccepted());
+
+        assertThat(balanceOf("client123")).isEqualByComparingTo("9.50");
+    }
+
+    @Test
+    void shouldRejectWhenBalanceIsInsufficient() throws Exception {
+        seed(PlanType.PREPAID, "0.20", "0.00");
+
+        send("sem saldo")
+                .andExpect(status().isPaymentRequired())
+                .andExpect(jsonPath("$.required").value(0.25))
+                .andExpect(jsonPath("$.available").value(0.2));
+
+        assertThat(balanceOf("client123")).isEqualByComparingTo("0.20");
+        assertThat(messageRepository.count()).isZero();
+        assertThat(queue.size()).isZero();
+    }
+
+    @Test
+    void shouldAllowSpendingExactBalanceAndThenReject() throws Exception {
+        seed(PlanType.PREPAID, "0.25", "0.00");
+
+        send("última").andExpect(status().isAccepted());
+        assertThat(balanceOf("client123")).isEqualByComparingTo("0.00");
+
+        send("sem saldo").andExpect(status().isPaymentRequired());
+        assertThat(messageRepository.count()).isEqualTo(1);
+    }
+
+    // ---------- Pós-pago ---------
+    @Test
+    void shouldConsumeRemainingMonthlyLimit() throws Exception {
+        // limite mensal 50, já usou 40 neste mês: restam 10
+        Client client = newClient("client123", "12345678000199", PlanType.POSTPAID, "0.00", "10.00", true);
+        client.setMonthlyLimit(new BigDecimal("50.00"));
+        client.renewLimitIfNewPeriod(currentPeriod());
+        clientRepository.save(client);
+
+        for (int i = 0; i < 10; i++) {
+            send("mensagem " + i).andExpect(status().isAccepted());
+        }
+
+        assertThat(limitOf("client123")).isEqualByComparingTo("7.50");
+        assertThat(balanceOf("client123")).isEqualByComparingTo("0.00");   // pós-pago não mexe no saldo
+        assertThat(queue.size()).isEqualTo(10);
+    }
+
+    @Test
+    void shouldRejectWhenMonthlyLimitIsExhausted() throws Exception {
+        Client client = newClient("client123", "12345678000199", PlanType.POSTPAID, "0.00", "0.20", true);
+        client.setMonthlyLimit(new BigDecimal("50.00"));
+        client.renewLimitIfNewPeriod(currentPeriod());
+        clientRepository.save(client);
+
+        send("sem limite")
+                .andExpect(status().isPaymentRequired())
+                .andExpect(jsonPath("$.detail").value("Limite mensal insuficiente"));
+
+        assertThat(limitOf("client123")).isEqualByComparingTo("0.20");
+        assertThat(messageRepository.count()).isZero();
+        assertThat(queue.size()).isZero();
+    }
+
+    @Test
+    void shouldRenewLimitWhenMonthChanges() throws Exception {
+        // restam 0.00 do mês passado: ao enviar neste mês, o limite volta a 50 e debita 0.25
+        Client client = newClient("client123", "12345678000199", PlanType.POSTPAID, "0.00", "0.00", true);
+        client.setMonthlyLimit(new BigDecimal("50.00"));
+        client.renewLimitIfNewPeriod(currentPeriod().minusMonths(1));
+        clientRepository.save(client);
+
+        send("novo mês").andExpect(status().isAccepted());
+
+        Client saved = clientRepository.findById("client123").orElseThrow();
+        assertThat(saved.getLimit()).isEqualByComparingTo("49.75");
+        assertThat(saved.getLimitPeriod()).isEqualTo(currentPeriod());
+    }
+
+    @Test
+    void shouldResetOnlyPostpaidLimitsInScheduledJob() {
+        Client postpaid = newClient("client123", "12345678000199", PlanType.POSTPAID, "0.00", "1.00", true);
+        postpaid.setMonthlyLimit(new BigDecimal("50.00"));
+        postpaid.renewLimitIfNewPeriod(currentPeriod().minusMonths(1));
+        clientRepository.save(postpaid);
+        clientRepository.save(newClient("client456", "99999999000100", PlanType.PREPAID, "3.00", "0.00", true));
+
+        resetJob.run();
+
+        Client renewed = clientRepository.findById("client123").orElseThrow();
+        assertThat(renewed.getLimit()).isEqualByComparingTo("50.00");
+        assertThat(renewed.getLimitPeriod()).isEqualTo(currentPeriod());
+        assertThat(balanceOf("client456")).isEqualByComparingTo("3.00");
+    }
+
+    // ---------- Cliente invativo e concorrência ---------
+
+    @Test
+    void shouldRejectInactiveClientWithoutCharging() throws Exception {
+        clientRepository.save(newClient("client123", "12345678000199", PlanType.PREPAID, "10.00", "0.00", false));
+
+        send("inativo").andExpect(status().isForbidden());
+
+        assertThat(balanceOf("client123")).isEqualByComparingTo("10.00");
+        assertThat(messageRepository.count()).isZero();
+    }
+
+    @Test
+    void shouldNeverOverspendUnderConcurrentRequests() throws Exception {
+        seed(PlanType.PREPAID, "1.00", "0.00");   // dá para 4 mensagens normais
+        var authorization = bearer();
+        int requests = 8;
+
+        try(var executor = Executors.newFixedThreadPool(requests)) {
+            var start = new CountDownLatch(1);
+
+            List<Future<Integer>> futures = new ArrayList<>();
+            for (int i = 0; i < requests; i++) {
+                futures.add(executor.submit(() -> {
+                    start.await();
+                    return mockMvc.perform(post("/messages")
+                                    .header("Authorization", authorization)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(validBody("concorrente")))
+                            .andReturn().getResponse().getStatus();
+                }));
+            }
+            start.countDown();
+
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> future : futures) {
+                statuses.add(future.get(30, TimeUnit.SECONDS));
+            }
+            executor.shutdown();
+
+            assertThat(statuses).filteredOn(s -> s == 202).hasSize(4);
+            assertThat(statuses).filteredOn(s -> s == 402).hasSize(4);
+            assertThat(balanceOf("client123")).isEqualByComparingTo("0.00");
+            assertThat(messageRepository.count()).isEqualTo(4);
+            assertThat(queue.size()).isEqualTo(4);
+        }
+    }
+
     // ---------- helpers ----------
 
     private String bearer() {
@@ -233,7 +426,6 @@ class MessageIT {
     private Message stored(String id, Instant timestamp, MessageStatus status) {
         return new Message(
                 id,
-                "conv456",
                 "client123",
                 "user789",
                 "conteúdo",
@@ -241,5 +433,34 @@ class MessageIT {
                 MessagePriority.NORMAL,
                 status,
                 new BigDecimal("0.25"));
+    }
+
+    private LocalDate currentPeriod() {
+        return LocalDate.now(clock).withDayOfMonth(1);
+    }
+
+    private Client newClient(String id, String document, PlanType plan,
+                             String balance, String limit, boolean active) {
+        return new Client(id, "Empresa ABC", "hash-irrelevante", document, DocumentType.CNPJ,
+                plan, new BigDecimal(balance), new BigDecimal(limit), active);
+    }
+
+    private void seed(PlanType plan, String balance, String limit) {
+        clientRepository.save(newClient("client123", "12345678000199", plan, balance, limit, true));
+    }
+
+    private BigDecimal balanceOf(String id) {
+        return clientRepository.findById(id).orElseThrow().getBalance();
+    }
+
+    private BigDecimal limitOf(String id) {
+        return clientRepository.findById(id).orElseThrow().getLimit();
+    }
+
+    private ResultActions send(String content) throws Exception {
+        return mockMvc.perform(post("/messages")
+                .header("Authorization", bearer())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(validBody(content)));
     }
 }

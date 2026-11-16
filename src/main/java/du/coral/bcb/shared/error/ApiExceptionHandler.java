@@ -45,6 +45,14 @@ public class ApiExceptionHandler {
         return ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ProblemDetail handleInsufficientFunds(InsufficientFundsException ex) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.PAYMENT_REQUIRED, ex.getMessage());
+        problem.setProperty("required", ex.getRequired());
+        problem.setProperty("available", ex.getAvailable());
+        return problem;
+    }
+
     String getDefaultMessage(FieldError fieldError) {
         var defaultMsg = fieldError.getDefaultMessage();
         return defaultMsg == null

@@ -16,9 +16,6 @@ public class Message implements Persistable<String> {
     @Column(length = 64)
     private String id;
 
-    @Column(name = "conversation_id", nullable = false, length = 64)
-    private String conversationId;
-
     @Column(name = "sender_id", nullable = false, length = 64)
     private String senderId;
 
@@ -49,7 +46,6 @@ public class Message implements Persistable<String> {
     }
 
     public Message(String id,
-                   String conversationId,
                    String senderId,
                    String recipientId,
                    String content,
@@ -58,7 +54,6 @@ public class Message implements Persistable<String> {
                    MessageStatus status,
                    BigDecimal cost) {
         this.id = id;
-        this.conversationId = conversationId;
         this.senderId = senderId;
         this.recipientId = recipientId;
         this.content = content;
@@ -69,14 +64,12 @@ public class Message implements Persistable<String> {
     }
 
     public static Message createQueued(
-            String conversationId,
             String senderId,
             String recipientId,
             String content,
             MessagePriority priority) {
         return new Message(
                 "msg-%s".formatted(UUID.randomUUID()),
-                conversationId,
                 senderId,
                 recipientId,
                 content,
@@ -100,10 +93,6 @@ public class Message implements Persistable<String> {
     @PostLoad
     void markNotNew() {
         this.isNew = false;
-    }
-
-    public String getConversationId() {
-        return conversationId;
     }
 
     public String getSenderId() {

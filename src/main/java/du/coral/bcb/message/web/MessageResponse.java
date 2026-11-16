@@ -9,7 +9,6 @@ import java.time.Instant;
 
 public record MessageResponse(
         String id,
-        String conversationId,
         String senderId,
         String recipientId,
         String content,
@@ -21,7 +20,6 @@ public record MessageResponse(
     public static MessageResponse from(Message m) {
         return new MessageResponse(
                 m.getId(),
-                m.getConversationId(),
                 m.getSenderId(),
                 m.getRecipientId(),
                 m.getContent(),

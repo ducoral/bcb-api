@@ -24,7 +24,7 @@ public record ClientResponse(
                 c.getDocumentType(),
                 c.getPlanType(),
                 c.getBalance(),
-                c.getLimit(),
+                c.getMonthlyLimit(),
                 c.isActive());
     }
 }

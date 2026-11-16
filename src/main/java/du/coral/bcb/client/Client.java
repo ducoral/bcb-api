@@ -1,8 +1,10 @@
 package du.coral.bcb.client;
 
+import du.coral.bcb.shared.error.InsufficientFundsException;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "client", uniqueConstraints = @UniqueConstraint(columnNames = "document_id"))
@@ -34,6 +36,12 @@ public class Client {
 
     @Column(name = "credit_limit", nullable = false, precision = 15, scale = 2)
     private BigDecimal limit = BigDecimal.ZERO;
+
+    @Column(name = "monthly_limit", nullable = false, precision = 15, scale = 2)
+    private BigDecimal monthlyLimit = BigDecimal.ZERO;
+
+    @Column(name = "limit_period")
+    private LocalDate limitPeriod;   // 1º dia do mês a que o limit atual se refere; null = ainda sem consumo
 
     @Column(nullable = false)
     private boolean active = true;
@@ -69,9 +77,39 @@ public class Client {
         this.planType = data.planType();
         this.balance = data.balance();
         this.limit = data.limit();
+        this.monthlyLimit = limit;
         this.active = data.active();
         if (encodedPassword != null) {
             this.password = encodedPassword;
+        }
+    }
+
+    /** Pré-pago: debita o balance. Pós-pago: renova o limite se virou o mês e debita o limit. */
+    public void charge(BigDecimal cost, LocalDate currentPeriod) {
+        switch (planType) {
+            case PREPAID -> {
+                if (balance.compareTo(cost) < 0) {
+                    throw new InsufficientFundsException("Saldo insuficiente", cost, balance);
+                }
+                balance = balance.subtract(cost);
+            }
+            case POSTPAID -> {
+                renewLimitIfNewPeriod(currentPeriod);
+                if (limit.compareTo(cost) < 0) {
+                    throw new InsufficientFundsException("Limite mensal insuficiente", cost, limit);
+                }
+                limit = limit.subtract(cost);
+            }
+        }
+    }
+
+    /** Restaura o limite mensal quando o mês mudou. Na primeira cobrança só registra o período. */
+    public void renewLimitIfNewPeriod(LocalDate currentPeriod) {
+        if (limitPeriod == null) {
+            limitPeriod = currentPeriod;
+        } else if (limitPeriod.isBefore(currentPeriod)) {
+            limit = monthlyLimit;
+            limitPeriod = currentPeriod;
         }
     }
 
@@ -137,6 +175,22 @@ public class Client {
 
     public void setLimit(BigDecimal limit) {
         this.limit = limit;
+    }
+
+    public BigDecimal getMonthlyLimit() {
+        return monthlyLimit;
+    }
+
+    public void setMonthlyLimit(BigDecimal monthlyLimit) {
+        this.monthlyLimit = monthlyLimit;
+    }
+
+    public LocalDate getLimitPeriod() {
+        return limitPeriod;
+    }
+
+    public void setLimitPeriod(LocalDate limitPeriod) {
+        this.limitPeriod = limitPeriod;
     }
 
     public boolean isActive() {

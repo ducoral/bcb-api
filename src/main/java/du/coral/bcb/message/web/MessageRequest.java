@@ -7,9 +7,6 @@ import jakarta.validation.constraints.Size;
 
 @Schema(description = "Dados para envio de mensagem. O remetente é o cliente autenticado pelo JWT.")
 public record MessageRequest(
-        @Schema(example = "conv456")
-        @NotBlank @Size(max = 64) String conversationId,
-
         @Schema(example = "user789")
         @NotBlank @Size(max = 64) String recipientId,
 
