@@ -11,12 +11,24 @@ CREATE TABLE client
     active        BOOLEAN        NOT NULL DEFAULT TRUE,
 
     CONSTRAINT pk_client PRIMARY KEY (id),
-    CONSTRAINT uk_client_document_id UNIQUE (document_id),
-    CONSTRAINT ck_client_document_type CHECK (document_type IN ('CPF', 'CNPJ')),
-    CONSTRAINT ck_client_plan_type CHECK (plan_type IN ('PREPAID', 'POSTPAID')),
-    CONSTRAINT ck_client_balance CHECK (balance >= 0),
-    CONSTRAINT ck_client_credit_limit CHECK (credit_limit >= 0),
-    CONSTRAINT ck_client_document_length CHECK (
-        (document_type = 'CPF' AND char_length(document_id) = 11) OR
-        (document_type = 'CNPJ' AND char_length(document_id) = 14))
+    CONSTRAINT uk_client_document_id UNIQUE (document_id)
 );
+
+CREATE TABLE message
+(
+    id              VARCHAR(64)    NOT NULL,
+    conversation_id VARCHAR(64)    NOT NULL,
+    sender_id       VARCHAR(64)    NOT NULL,
+    recipient_id    VARCHAR(64)    NOT NULL,
+    content         VARCHAR(4000)  NOT NULL,
+    created_at      TIMESTAMPTZ    NOT NULL,
+    priority        VARCHAR(10)    NOT NULL,
+    status          VARCHAR(12)    NOT NULL,
+    cost            NUMERIC(10, 2) NOT NULL,
+
+    CONSTRAINT pk_message PRIMARY KEY (id),
+    CONSTRAINT fk_message_sender FOREIGN KEY (sender_id) REFERENCES client (id)
+);
+
+-- usado pela carga inicial da fila
+CREATE INDEX idx_message_queued ON message (created_at) WHERE status = 'QUEUED';

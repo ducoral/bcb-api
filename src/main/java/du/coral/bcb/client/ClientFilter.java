@@ -16,7 +16,7 @@ import java.io.IOException;
 @Component
 public class ClientFilter extends OncePerRequestFilter {
 
-    private static final String ADMIN_PATH = "/clients/";
+    private static final String ADMIN_PATH = "/clients";
 
     @Value("${app.admin.token:admin-token}")
     private String adminToken;
