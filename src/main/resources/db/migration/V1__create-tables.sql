@@ -33,3 +33,6 @@ CREATE TABLE message
 
 -- usado pela carga inicial da fila
 CREATE INDEX idx_message_queued ON message (created_at) WHERE status = 'QUEUED';
+
+-- índice para a listagem
+CREATE INDEX idx_message_sender_created_at ON message (sender_id, created_at DESC);

@@ -23,6 +23,13 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -45,6 +52,8 @@ class MessageIT {
     @Container
     @ServiceConnection
     static final PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:16-alpine");
+
+    static final Instant BASE = Instant.parse("2026-11-15T10:00:00Z");
 
     @Autowired
     WebApplicationContext context;
@@ -390,6 +399,218 @@ class MessageIT {
         }
     }
 
+    // ---------- GET /messages ----------
+
+    @Test
+    void shouldListOnlyOwnMessagesNewestFirst() throws Exception {
+        seedOtherClient();
+        messageRepository.saveAll(List.of(
+                stored("msg-1", "client123", "user789", BASE, MessagePriority.NORMAL, MessageStatus.QUEUED),
+                stored("msg-2", "client123", "user789", BASE.plusSeconds(60), MessagePriority.NORMAL, MessageStatus.SENT),
+                stored("msg-other", "client999", "user789", BASE.plusSeconds(120), MessagePriority.NORMAL, MessageStatus.QUEUED)));
+
+        mockMvc.perform(authed(get("/messages")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andExpect(jsonPath("$.items[0].id").value("msg-2"))
+                .andExpect(jsonPath("$.items[1].id").value("msg-1"))
+                .andExpect(jsonPath("$.items[*].senderId", everyItem(is("client123"))))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void shouldReturnEmptyPageWhenThereAreNoMessages() throws Exception {
+        mockMvc.perform(authed(get("/messages")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(0)))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.totalPages").value(0));
+    }
+
+    @Test
+    void shouldFilterByStatus() throws Exception {
+        messageRepository.saveAll(List.of(
+                stored("msg-q", "client123", "user789", BASE, MessagePriority.NORMAL, MessageStatus.QUEUED),
+                stored("msg-s1", "client123", "user789", BASE.plusSeconds(1), MessagePriority.NORMAL, MessageStatus.SENT),
+                stored("msg-s2", "client123", "user789", BASE.plusSeconds(2), MessagePriority.NORMAL, MessageStatus.SENT)));
+
+        mockMvc.perform(authed(get("/messages").param("status", "sent")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.items[*].status", everyItem(is("sent"))));
+
+        mockMvc.perform(authed(get("/messages").param("status", "QUEUED")))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value("msg-q"));
+    }
+
+    @Test
+    void shouldFilterByPriority() throws Exception {
+        messageRepository.saveAll(List.of(
+                stored("msg-n", "client123", "user789", BASE, MessagePriority.NORMAL, MessageStatus.QUEUED),
+                stored("msg-u", "client123", "user789", BASE.plusSeconds(1), MessagePriority.URGENT, MessageStatus.QUEUED)));
+
+        mockMvc.perform(authed(get("/messages").param("priority", "urgent")))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value("msg-u"))
+                .andExpect(jsonPath("$.items[0].priority").value("urgent"));
+    }
+
+    @Test
+    void shouldFilterByRecipient() throws Exception {
+        messageRepository.saveAll(List.of(
+                stored("msg-a", "client123", "user111", BASE, MessagePriority.NORMAL, MessageStatus.QUEUED),
+                stored("msg-b", "client123", "user222", BASE.plusSeconds(1), MessagePriority.NORMAL, MessageStatus.QUEUED)));
+
+        mockMvc.perform(authed(get("/messages").param("recipientId", "user222")))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value("msg-b"));
+    }
+
+    @Test
+    void shouldFilterByPeriodInclusively() throws Exception {
+        messageRepository.saveAll(List.of(
+                stored("msg-1", "client123", "user789", BASE, MessagePriority.NORMAL, MessageStatus.QUEUED),
+                stored("msg-2", "client123", "user789", BASE.plusSeconds(60), MessagePriority.NORMAL, MessageStatus.QUEUED),
+                stored("msg-3", "client123", "user789", BASE.plusSeconds(120), MessagePriority.NORMAL, MessageStatus.QUEUED),
+                stored("msg-4", "client123", "user789", BASE.plusSeconds(180), MessagePriority.NORMAL, MessageStatus.QUEUED)));
+
+        mockMvc.perform(authed(get("/messages")
+                        .param("from", BASE.plusSeconds(60).toString())
+                        .param("to", BASE.plusSeconds(120).toString())))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.items[0].id").value("msg-3"))
+                .andExpect(jsonPath("$.items[1].id").value("msg-2"));
+    }
+
+    @Test
+    void shouldCombineFilters() throws Exception {
+        messageRepository.saveAll(List.of(
+                stored("msg-1", "client123", "user789", BASE, MessagePriority.URGENT, MessageStatus.SENT),
+                stored("msg-2", "client123", "user789", BASE.plusSeconds(1), MessagePriority.NORMAL, MessageStatus.SENT),
+                stored("msg-3", "client123", "user789", BASE.plusSeconds(2), MessagePriority.URGENT, MessageStatus.QUEUED)));
+
+        mockMvc.perform(authed(get("/messages").param("status", "sent").param("priority", "urgent")))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.items[0].id").value("msg-1"));
+    }
+
+    @Test
+    void shouldPaginateResults() throws Exception {
+        for (int i = 1; i <= 5; i++) {
+            messageRepository.save(stored("msg-" + i, "client123", "user789", BASE.plusSeconds(i),
+                    MessagePriority.NORMAL, MessageStatus.QUEUED));
+        }
+
+        // mais novas primeiro: msg-5, msg-4 | msg-3, msg-2 | msg-1
+        mockMvc.perform(authed(get("/messages").param("page", "1").param("size", "2")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items", hasSize(2)))
+                .andExpect(jsonPath("$.items[0].id").value("msg-3"))
+                .andExpect(jsonPath("$.items[1].id").value("msg-2"))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(5))
+                .andExpect(jsonPath("$.totalPages").value(3));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "status=foo", "priority=high", "from=ontem", "page=-1", "size=0", "size=101"})
+    void shouldReturnBadRequestForInvalidQueryParameters(String query) throws Exception {
+        mockMvc.perform(authed(get("/messages?" + query)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenFromIsAfterTo() throws Exception {
+        mockMvc.perform(authed(get("/messages")
+                        .param("from", BASE.plusSeconds(60).toString())
+                        .param("to", BASE.toString())))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ---------- GET /messages/{id}
+
+    @Test
+    void shouldReturnMessageDetails() throws Exception {
+        messageRepository.save(stored("msg-1", "client123", "user789", BASE,
+                MessagePriority.URGENT, MessageStatus.SENT));
+
+        mockMvc.perform(authed(get("/messages/msg-1")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("msg-1"))
+                .andExpect(jsonPath("$.senderId").value("client123"))
+                .andExpect(jsonPath("$.recipientId").value("user789"))
+                .andExpect(jsonPath("$.content").value("conteúdo"))
+                .andExpect(jsonPath("$.timestamp", startsWith("2026-11-15T10:00:00")))
+                .andExpect(jsonPath("$.priority").value("urgent"))
+                .andExpect(jsonPath("$.status").value("sent"))
+                .andExpect(jsonPath("$.cost").value(0.5));
+    }
+
+    @Test
+    void shouldReturnNotFoundForUnknownMessage() throws Exception {
+        mockMvc.perform(authed(get("/messages/inexistente")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnNotFoundForMessageOfAnotherClient() throws Exception {
+        seedOtherClient();
+        messageRepository.save(stored("msg-other", "client999", "user789", BASE,
+                MessagePriority.NORMAL, MessageStatus.QUEUED));
+
+        mockMvc.perform(authed(get("/messages/msg-other")))
+                .andExpect(status().isNotFound());
+    }
+
+    // ---------- /messages/{id}/status
+
+    @Test
+    void shouldReturnStoredMessageStatus() throws Exception {
+        messageRepository.save(stored("msg-1", "client123", "user789", BASE,
+                MessagePriority.NORMAL, MessageStatus.DELIVERED));
+
+        mockMvc.perform(authed(get("/messages/msg-1/status")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("msg-1"))
+                .andExpect(jsonPath("$.status").value("delivered"))
+                .andExpect(jsonPath("$.content").doesNotExist());
+    }
+
+    @Test
+    void shouldReportQueuedStatusRightAfterSending() throws Exception {
+        String id = sendAndGetId("acompanhar status");
+
+        mockMvc.perform(authed(get("/messages/" + id + "/status")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.status").value("queued"));
+    }
+
+    @Test
+    void shouldReturnNotFoundForStatusOfAnotherClientsMessage() throws Exception {
+        seedOtherClient();
+        messageRepository.save(stored("msg-other", "client999", "user789", BASE,
+                MessagePriority.NORMAL, MessageStatus.QUEUED));
+
+        mockMvc.perform(authed(get("/messages/msg-other/status")))
+                .andExpect(status().isNotFound());
+    }
+
+    // ---------- Autenticação
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/messages", "/messages/msg-1", "/messages/msg-1/status"})
+    void shouldRejectReadEndpointsWithoutToken(String path) throws Exception {
+        mockMvc.perform(get(path))
+                .andExpect(status().isUnauthorized());
+    }
+
     // ---------- helpers ----------
 
     private String bearer() {
@@ -419,15 +640,20 @@ class MessageIT {
     }
 
     private Message stored(String id, Instant timestamp, MessageStatus status) {
+        return stored(id, "client123", "user789", timestamp, MessagePriority.NORMAL, status);
+    }
+
+    private Message stored(String id, String senderId, String recipientId, Instant timestamp,
+                           MessagePriority priority, MessageStatus status) {
         return new Message(
                 id,
-                "client123",
-                "user789",
+                senderId,
+                recipientId,
                 "conteúdo",
                 timestamp,
-                MessagePriority.NORMAL,
+                priority,
                 status,
-                new BigDecimal("0.25"));
+                priority.cost());
     }
 
     private LocalDate currentPeriod() {
@@ -444,6 +670,10 @@ class MessageIT {
         clientRepository.save(newClient("client123", "12345678000199", plan, balance, limit, true));
     }
 
+    private void seedOtherClient() {
+        clientRepository.save(newClient("client999", "99999999000100", PlanType.PREPAID, "10.00", "0.00", true));
+    }
+
     private BigDecimal balanceOf(String id) {
         return clientRepository.findById(id).orElseThrow().getBalance();
     }
@@ -457,5 +687,9 @@ class MessageIT {
                 .header("Authorization", bearer())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(validBody(content)));
+    }
+
+    private MockHttpServletRequestBuilder authed(MockHttpServletRequestBuilder request) {
+        return request.header("Authorization", bearer());
     }
 }
