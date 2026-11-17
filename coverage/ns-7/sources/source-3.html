@@ -1,0 +1,199 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > ConversationMessage</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">du.coral.bcb.conversation</a>
+</div>
+
+<h1>Coverage Summary for Class: ConversationMessage (du.coral.bcb.conversation)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ConversationMessage</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (10/10)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (17/17)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">ConversationMessage$HibernateInstantiator</td>
+  </tr>
+  <tr>
+    <td class="name">ConversationMessage$HibernateProxy</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (10/10)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (17/17)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package du.coral.bcb.conversation;
+&nbsp;
+&nbsp;import jakarta.persistence.*;
+&nbsp;import org.springframework.data.domain.Persistable;
+&nbsp;
+&nbsp;import java.time.Instant;
+&nbsp;
+&nbsp;@Entity
+&nbsp;@Table(name = &quot;conversation_message&quot;)
+&nbsp;public class ConversationMessage implements Persistable&lt;String&gt; {
+&nbsp;
+&nbsp;    @Id
+&nbsp;    @Column(length = 64)
+&nbsp;    private String id;
+&nbsp;
+&nbsp;    @Column(name = &quot;conversation_id&quot;, nullable = false, length = 64)
+&nbsp;    private String conversationId;
+&nbsp;
+&nbsp;    @Column(name = &quot;sender_id&quot;, nullable = false, length = 64)
+&nbsp;    private String senderId;
+&nbsp;
+&nbsp;    @Column(name = &quot;recipient_id&quot;, nullable = false, length = 64)
+&nbsp;    private String recipientId;
+&nbsp;
+&nbsp;    @Column(nullable = false, length = 4000)
+&nbsp;    private String content;
+&nbsp;
+&nbsp;    @Column(name = &quot;created_at&quot;, nullable = false)
+&nbsp;    private Instant timestamp;
+&nbsp;
+<b class="fc">&nbsp;    @Transient</b>
+&nbsp;    private boolean isNew = true;
+&nbsp;
+<b class="fc">&nbsp;    protected ConversationMessage() {</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public ConversationMessage(String id, String conversationId, String senderId,
+<b class="fc">&nbsp;                               String recipientId, String content, Instant timestamp) {</b>
+<b class="fc">&nbsp;        this.id = id;</b>
+<b class="fc">&nbsp;        this.conversationId = conversationId;</b>
+<b class="fc">&nbsp;        this.senderId = senderId;</b>
+<b class="fc">&nbsp;        this.recipientId = recipientId;</b>
+<b class="fc">&nbsp;        this.content = content;</b>
+<b class="fc">&nbsp;        this.timestamp = timestamp;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public String getId() {
+<b class="fc">&nbsp;        return id;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public boolean isNew() {
+<b class="fc">&nbsp;        return isNew;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @PostPersist
+&nbsp;    @PostLoad
+&nbsp;    void markNotNew() {
+<b class="fc">&nbsp;        this.isNew = false;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public String getConversationId() {
+<b class="fc">&nbsp;        return conversationId;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public String getSenderId() {
+<b class="fc">&nbsp;        return senderId;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public String getRecipientId() {
+<b class="fc">&nbsp;        return recipientId;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public String getContent() {
+<b class="fc">&nbsp;        return content;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public Instant getTimestamp() {
+<b class="fc">&nbsp;        return timestamp;</b>
+&nbsp;    }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-11-17 15:19</div>
+</div>
+</body>
+</html>

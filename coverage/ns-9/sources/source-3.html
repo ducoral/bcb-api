@@ -1,0 +1,163 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > MessageQueue</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">du.coral.bcb.message</a>
+</div>
+
+<h1>Coverage Summary for Class: MessageQueue (du.coral.bcb.message)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Branch, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MessageQueue</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (8/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (19/19)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package du.coral.bcb.message;
+&nbsp;
+&nbsp;import org.springframework.stereotype.Component;
+&nbsp;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Optional;
+&nbsp;import java.util.Set;
+&nbsp;import java.util.concurrent.ConcurrentHashMap;
+&nbsp;
+&nbsp;@Component
+<b class="fc">&nbsp;public class MessageQueue {</b>
+&nbsp;
+<b class="fc">&nbsp;    private final Set&lt;String&gt; queuedIds = ConcurrentHashMap.newKeySet();</b>
+<b class="fc">&nbsp;    private final MessageQueuePrioritizer queuePrioritizer = new MessageQueuePrioritizer();</b>
+&nbsp;
+&nbsp;    public boolean enqueue(Message message) {
+<b class="fc">&nbsp;        var isAdded = queuedIds.add(message.getId());</b>
+<b class="fc">&nbsp;        if (!isAdded)</b>
+<b class="fc">&nbsp;            return false;</b>
+<b class="fc">&nbsp;        return queuePrioritizer.offer(message);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int enqueueAll(Collection&lt;Message&gt; messages) {
+<b class="fc">&nbsp;        int added = 0;</b>
+<b class="fc">&nbsp;        for (var message : messages)</b>
+<b class="fc">&nbsp;            if (enqueue(message))</b>
+<b class="fc">&nbsp;                added++;</b>
+<b class="fc">&nbsp;        return added;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public Optional&lt;Message&gt; poll() {
+<b class="fc">&nbsp;        var message = queuePrioritizer.poll();</b>
+<b class="fc">&nbsp;        if (message != null) {</b>
+<b class="fc">&nbsp;            queuedIds.remove(message.getId());</b>
+&nbsp;        }
+<b class="fc">&nbsp;        return Optional.ofNullable(message);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int size() {
+<b class="fc">&nbsp;        return queuePrioritizer.size();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public void clear() {
+<b class="fc">&nbsp;        queuePrioritizer.clear();</b>
+<b class="fc">&nbsp;        queuedIds.clear();</b>
+&nbsp;    }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-11-17 15:19</div>
+</div>
+</body>
+</html>

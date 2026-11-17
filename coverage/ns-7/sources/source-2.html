@@ -1,0 +1,278 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > ConversationFeeder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">du.coral.bcb.conversation</a>
+</div>
+
+<h1>Coverage Summary for Class: ConversationFeeder (du.coral.bcb.conversation)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Branch, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ConversationFeeder</td>
+<td class="coverageStat">
+  <span class="percent">
+    62,5%
+  </span>
+  <span class="absValue">
+    (5/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85,7%
+  </span>
+  <span class="absValue">
+    (12/14)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    83,6%
+  </span>
+  <span class="absValue">
+    (51/61)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">ConversationFeeder$Fed</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    66,7%
+  </span>
+  <span class="absValue">
+    (6/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85,7%
+  </span>
+  <span class="absValue">
+    (12/14)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    83,9%
+  </span>
+  <span class="absValue">
+    (52/62)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package du.coral.bcb.conversation;
+&nbsp;
+&nbsp;import du.coral.bcb.message.*;
+&nbsp;import org.slf4j.Logger;
+&nbsp;import org.slf4j.LoggerFactory;
+&nbsp;import org.springframework.stereotype.Service;
+&nbsp;import org.springframework.transaction.support.TransactionTemplate;
+&nbsp;
+&nbsp;import java.util.Optional;
+&nbsp;
+&nbsp;@Service
+&nbsp;public class ConversationFeeder {
+&nbsp;
+<b class="fc">&nbsp;    private static final Logger log = LoggerFactory.getLogger(ConversationFeeder.class);</b>
+&nbsp;
+&nbsp;    /** Dados de uma mensagem processada, usados para o log depois do commit. */
+<b class="fc">&nbsp;    private record Fed(String conversationId, String clientId, String recipientId,</b>
+&nbsp;                       boolean conversationCreated, int unreadCount) {}
+&nbsp;
+&nbsp;    private final MessageQueue queue;
+&nbsp;    private final MessageRepository messageRepository;
+&nbsp;    private final ConversationRepository conversationRepository;
+&nbsp;    private final ConversationMessageRepository conversationMessageRepository;
+&nbsp;    private final TransactionTemplate transactionTemplate;
+&nbsp;
+&nbsp;    public ConversationFeeder(MessageQueue queue, MessageRepository messageRepository,
+&nbsp;                              ConversationRepository conversationRepository,
+&nbsp;                              ConversationMessageRepository conversationMessageRepository,
+<b class="fc">&nbsp;                              TransactionTemplate transactionTemplate) {</b>
+<b class="fc">&nbsp;        this.queue = queue;</b>
+<b class="fc">&nbsp;        this.messageRepository = messageRepository;</b>
+<b class="fc">&nbsp;        this.conversationRepository = conversationRepository;</b>
+<b class="fc">&nbsp;        this.conversationMessageRepository = conversationMessageRepository;</b>
+<b class="fc">&nbsp;        this.transactionTemplate = transactionTemplate;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /** Consome toda a fila (FIFO) e devolve quantas mensagens foram processadas com sucesso. */
+&nbsp;    public int drain() {
+<b class="fc">&nbsp;        long drainStart = System.nanoTime();</b>
+<b class="fc">&nbsp;        int processed = 0;</b>
+<b class="fc">&nbsp;        int skipped = 0;</b>
+<b class="fc">&nbsp;        int failed = 0;</b>
+&nbsp;
+&nbsp;        Optional&lt;Message&gt; next;
+<b class="fc">&nbsp;        while ((next = queue.poll()).isPresent()) {</b>
+<b class="fc">&nbsp;            var messageId = next.get().getId();</b>
+<b class="fc">&nbsp;            long start = System.nanoTime();</b>
+<b class="fc">&nbsp;            log.info(&quot;Mensagem {} retirada da fila ({} restante(s))&quot;, messageId, queue.size());</b>
+&nbsp;
+&nbsp;            try {
+<b class="fc">&nbsp;                Fed fed = transactionTemplate.execute(status -&gt; feed(messageId));</b>
+<b class="fc">&nbsp;                if (fed == null) {</b>
+<b class="fc">&nbsp;                    skipped++;</b>
+&nbsp;                    continue;
+&nbsp;                }
+<b class="fc">&nbsp;                processed++;</b>
+&nbsp;
+<b class="fc">&nbsp;                if (fed.conversationCreated()) {</b>
+<b class="fc">&nbsp;                    log.info(&quot;Conversa {} criada: cliente={}, destinatario={}&quot;,</b>
+<b class="fc">&nbsp;                            fed.conversationId(), fed.clientId(), fed.recipientId());</b>
+&nbsp;                } else {
+<b class="fc">&nbsp;                    log.info(&quot;Conversa {} atualizada: cliente={}, destinatario={}, naoLidas={}&quot;,</b>
+<b class="fc">&nbsp;                            fed.conversationId(), fed.clientId(), fed.recipientId(), fed.unreadCount());</b>
+&nbsp;                }
+<b class="fc">&nbsp;                log.info(&quot;Mensagem {} registrada na conversa {} e marcada como sent ({} ms)&quot;,</b>
+<b class="fc">&nbsp;                        messageId, fed.conversationId(), elapsedMillis(start));</b>
+&nbsp;            } catch (RuntimeException e) {
+<b class="nc">&nbsp;                failed++;</b>
+<b class="nc">&nbsp;                log.error(&quot;Falha ao processar a mensagem {}&quot;, messageId, e);</b>
+<b class="nc">&nbsp;                markFailed(messageId);</b>
+&nbsp;            }
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        if (processed + skipped + failed &gt; 0) {</b>
+<b class="fc">&nbsp;            log.info(&quot;Consumo da fila finalizado: processadas={}, ignoradas={}, falhas={}, restantes={}, tempo={} ms&quot;,</b>
+<b class="fc">&nbsp;                    processed, skipped, failed, queue.size(), elapsedMillis(drainStart));</b>
+&nbsp;        }
+<b class="fc">&nbsp;        return processed;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /** Uma transação por mensagem: conversa, mensagem da conversa e status mudam juntos. */
+&nbsp;    private Fed feed(String messageId) {
+<b class="fc">&nbsp;        var message = messageRepository.findById(messageId).orElse(null);</b>
+<b class="fc">&nbsp;        if (message == null) {</b>
+<b class="fc">&nbsp;            log.warn(&quot;Mensagem {} não existe mais no banco; ignorada&quot;, messageId);</b>
+<b class="fc">&nbsp;            return null;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (message.getStatus() != MessageStatus.QUEUED) {</b>
+<b class="fc">&nbsp;            log.info(&quot;Mensagem {} ignorada: status atual é {} (já processada?)&quot;,</b>
+<b class="fc">&nbsp;                    messageId, message.getStatus().value());</b>
+<b class="fc">&nbsp;            return null;</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        var existing = conversationRepository</b>
+<b class="fc">&nbsp;                .findByClientIdAndRecipientId(message.getSenderId(), message.getRecipientId());</b>
+<b class="fc">&nbsp;        var created = existing.isEmpty();</b>
+&nbsp;
+<b class="fc">&nbsp;        var conversation = existing.orElseGet(() -&gt; Conversation.startedBy(message));</b>
+<b class="fc">&nbsp;        conversation.registerMessage(message.getContent(), message.getTimestamp());</b>
+<b class="fc">&nbsp;        conversation = conversationRepository.save(conversation);</b>
+&nbsp;
+<b class="fc">&nbsp;        conversationMessageRepository.save(new ConversationMessage(</b>
+<b class="fc">&nbsp;                message.getId(), conversation.getId(), message.getSenderId(),</b>
+<b class="fc">&nbsp;                message.getRecipientId(), message.getContent(), message.getTimestamp()));</b>
+&nbsp;
+<b class="fc">&nbsp;        message.changeStatus(MessageStatus.SENT);</b>
+<b class="fc">&nbsp;        return new Fed(conversation.getId(), conversation.getClientId(),</b>
+<b class="fc">&nbsp;                conversation.getRecipientId(), created, conversation.getUnreadCount());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    private void markFailed(String messageId) {
+&nbsp;        try {
+<b class="nc">&nbsp;            transactionTemplate.executeWithoutResult(status -&gt;</b>
+<b class="nc">&nbsp;                    messageRepository.findById(messageId)</b>
+<b class="nc">&nbsp;                            .filter(m -&gt; m.getStatus() == MessageStatus.QUEUED)</b>
+<b class="nc">&nbsp;                            .ifPresent(m -&gt; {</b>
+<b class="nc">&nbsp;                                m.changeStatus(MessageStatus.FAILED);</b>
+<b class="nc">&nbsp;                                log.info(&quot;Mensagem {} marcada como failed&quot;, messageId);</b>
+&nbsp;                            }));
+&nbsp;        } catch (RuntimeException e) {
+<b class="nc">&nbsp;            log.error(&quot;Não foi possível marcar a mensagem {} como failed&quot;, messageId, e);</b>
+&nbsp;        }
+&nbsp;    }
+&nbsp;
+&nbsp;    private static long elapsedMillis(long startNanos) {
+<b class="fc">&nbsp;        return (System.nanoTime() - startNanos) / 1_000_000;</b>
+&nbsp;    }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-11-17 15:19</div>
+</div>
+</body>
+</html>

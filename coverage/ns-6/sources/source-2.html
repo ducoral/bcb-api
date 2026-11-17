@@ -1,0 +1,211 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > ClientController</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">du.coral.bcb.client.web</a>
+</div>
+
+<h1>Coverage Summary for Class: ClientController (du.coral.bcb.client.web)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ClientController</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    83,3%
+  </span>
+  <span class="absValue">
+    (5/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    90%
+  </span>
+  <span class="absValue">
+    (9/10)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package du.coral.bcb.client.web;
+&nbsp;
+&nbsp;import du.coral.bcb.client.ClientService;
+&nbsp;import du.coral.bcb.shared.config.OpenApiConfig;
+&nbsp;import io.swagger.v3.oas.annotations.Operation;
+&nbsp;import io.swagger.v3.oas.annotations.headers.Header;
+&nbsp;import io.swagger.v3.oas.annotations.media.Content;
+&nbsp;import io.swagger.v3.oas.annotations.media.Schema;
+&nbsp;import io.swagger.v3.oas.annotations.responses.ApiResponse;
+&nbsp;import io.swagger.v3.oas.annotations.responses.ApiResponses;
+&nbsp;import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+&nbsp;import io.swagger.v3.oas.annotations.tags.Tag;
+&nbsp;import jakarta.validation.Valid;
+&nbsp;import org.springframework.http.ProblemDetail;
+&nbsp;import org.springframework.http.ResponseEntity;
+&nbsp;import org.springframework.web.bind.annotation.*;
+&nbsp;
+&nbsp;import java.net.URI;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;@RestController
+&nbsp;@RequestMapping(&quot;/clients&quot;)
+&nbsp;@Tag(name = &quot;Clientes (admin)&quot;, description = &quot;Gerenciamento administrativo de clientes&quot;)
+&nbsp;@SecurityRequirement(name = OpenApiConfig.ADMIN_AUTH)
+&nbsp;public class ClientController {
+&nbsp;
+&nbsp;    private final ClientService service;
+&nbsp;
+<b class="fc">&nbsp;    public ClientController(ClientService service) {</b>
+<b class="fc">&nbsp;        this.service = service;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Operation(summary = &quot;Cadastra um novo cliente&quot;,
+&nbsp;            description = &quot;Persiste um cliente pré-pago ou pós-pago. O documentId deve conter apenas dígitos.&quot;)
+&nbsp;    @ApiResponses({
+&nbsp;            @ApiResponse(
+&nbsp;                    responseCode = &quot;201&quot;, description = &quot;Cliente criado&quot;,
+&nbsp;                    headers = @Header(
+&nbsp;                            name = &quot;Location&quot;, description = &quot;URI do cliente criado&quot;,
+&nbsp;                            schema = @Schema(type = &quot;string&quot;, example = &quot;/clients/client123&quot;))),
+&nbsp;            @ApiResponse(responseCode = &quot;400&quot;,
+&nbsp;                    description = &quot;Dados inválidos&quot;,
+&nbsp;                    content = @Content(
+&nbsp;                            mediaType = &quot;application/problem+json&quot;,
+&nbsp;                            schema = @Schema(implementation = ProblemDetail.class))),
+&nbsp;            @ApiResponse(
+&nbsp;                    responseCode = &quot;409&quot;, description = &quot;Id ou documento já cadastrado&quot;,
+&nbsp;                    content = @Content(
+&nbsp;                            mediaType = &quot;application/problem+json&quot;,
+&nbsp;                            schema = @Schema(implementation = ProblemDetail.class)))
+&nbsp;    })
+&nbsp;    @PostMapping
+&nbsp;    public ResponseEntity&lt;ClientResponse&gt; createClient(@Valid @RequestBody ClientCreateRequest request) {
+<b class="fc">&nbsp;        var client = service.create(request.toEntity());</b>
+<b class="fc">&nbsp;        return ResponseEntity</b>
+<b class="fc">&nbsp;                .created(URI.create(&quot;/clients/&quot; + client.getId()))</b>
+<b class="fc">&nbsp;                .body(ClientResponse.from(client));</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Operation(summary = &quot;Lista clientes&quot;)
+&nbsp;    @GetMapping
+&nbsp;    public List&lt;ClientResponse&gt; list() {
+<b class="fc">&nbsp;        return service.findAll().stream().map(ClientResponse::from).toList();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Operation(summary = &quot;Obtém detalhes de um cliente&quot;)
+&nbsp;    @ApiResponses({
+&nbsp;            @ApiResponse(responseCode = &quot;200&quot;, description = &quot;Cliente encontrado&quot;),
+&nbsp;            @ApiResponse(responseCode = &quot;404&quot;, description = &quot;Cliente não encontrado&quot;,
+&nbsp;                    content = @Content(mediaType = &quot;application/problem+json&quot;,
+&nbsp;                            schema = @Schema(implementation = ProblemDetail.class)))
+&nbsp;    })
+&nbsp;    @GetMapping(&quot;/{id}&quot;)
+&nbsp;    public ClientResponse get(@PathVariable String id) {
+<b class="nc">&nbsp;        return ClientResponse.from(service.findById(id));</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Operation(summary = &quot;Atualiza um cliente&quot;)
+&nbsp;    @ApiResponses({
+&nbsp;            @ApiResponse(responseCode = &quot;200&quot;, description = &quot;Cliente atualizado&quot;),
+&nbsp;            @ApiResponse(responseCode = &quot;400&quot;, description = &quot;Dados inválidos&quot;,
+&nbsp;                    content = @Content(mediaType = &quot;application/problem+json&quot;,
+&nbsp;                            schema = @Schema(implementation = ProblemDetail.class))),
+&nbsp;            @ApiResponse(responseCode = &quot;404&quot;, description = &quot;Cliente não encontrado&quot;,
+&nbsp;                    content = @Content(mediaType = &quot;application/problem+json&quot;,
+&nbsp;                            schema = @Schema(implementation = ProblemDetail.class))),
+&nbsp;            @ApiResponse(responseCode = &quot;409&quot;, description = &quot;Documento já pertence a outro cliente&quot;,
+&nbsp;                    content = @Content(mediaType = &quot;application/problem+json&quot;,
+&nbsp;                            schema = @Schema(implementation = ProblemDetail.class)))
+&nbsp;    })
+&nbsp;    @PutMapping(&quot;/{id}&quot;)
+&nbsp;    public ClientResponse update(@PathVariable String id, @Valid @RequestBody ClientUpdateRequest request) {
+<b class="fc">&nbsp;        return ClientResponse.from(service.update(id, request.toCommand()));</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Operation(summary = &quot;Consulta saldo e limite do cliente&quot;)
+&nbsp;    @ApiResponses({
+&nbsp;            @ApiResponse(responseCode = &quot;200&quot;, description = &quot;Saldo e limite&quot;),
+&nbsp;            @ApiResponse(responseCode = &quot;404&quot;, description = &quot;Cliente não encontrado&quot;,
+&nbsp;                    content = @Content(mediaType = &quot;application/problem+json&quot;,
+&nbsp;                            schema = @Schema(implementation = ProblemDetail.class)))
+&nbsp;    })
+&nbsp;    @GetMapping(&quot;/{id}/balance&quot;)
+&nbsp;    public BalanceResponse balance(@PathVariable String id) {
+<b class="fc">&nbsp;        return BalanceResponse.from(service.findById(id));</b>
+&nbsp;    }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-11-17 15:19</div>
+</div>
+</body>
+</html>

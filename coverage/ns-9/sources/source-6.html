@@ -1,0 +1,241 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > MessageService</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">du.coral.bcb.message</a>
+</div>
+
+<h1>Coverage Summary for Class: MessageService (du.coral.bcb.message)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Branch, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MessageService</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (11/11)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    93,8%
+  </span>
+  <span class="absValue">
+    (15/16)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (45/45)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">MessageService$$SpringCGLIB$$0</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (11/11)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    93,8%
+  </span>
+  <span class="absValue">
+    (15/16)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (45/45)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package du.coral.bcb.message;
+&nbsp;
+&nbsp;import du.coral.bcb.client.ClientRepository;
+&nbsp;import du.coral.bcb.shared.error.InactiveClientException;
+&nbsp;import du.coral.bcb.shared.error.NotFoundException;
+&nbsp;import org.slf4j.Logger;
+&nbsp;import org.slf4j.LoggerFactory;
+&nbsp;import org.springframework.data.domain.Page;
+&nbsp;import org.springframework.data.domain.PageRequest;
+&nbsp;import org.springframework.data.domain.Sort;
+&nbsp;import org.springframework.data.jpa.domain.Specification;
+&nbsp;import org.springframework.stereotype.Service;
+&nbsp;import org.springframework.transaction.annotation.Transactional;
+&nbsp;import org.springframework.transaction.support.TransactionTemplate;
+&nbsp;
+&nbsp;import java.time.Clock;
+&nbsp;import java.time.Instant;
+&nbsp;import java.time.LocalDate;
+&nbsp;
+&nbsp;@Service
+&nbsp;public class MessageService {
+&nbsp;
+<b class="fc">&nbsp;    private static final Logger log = LoggerFactory.getLogger(MessageService.class);</b>
+&nbsp;
+&nbsp;    private final MessageRepository messageRepository;
+&nbsp;    private final ClientRepository clientRepository;
+&nbsp;    private final MessageQueue queue;
+&nbsp;    private final TransactionTemplate transactionTemplate;
+&nbsp;    private final Clock clock;
+&nbsp;
+&nbsp;    public MessageService(MessageRepository messageRepository, ClientRepository clientRepository,
+<b class="fc">&nbsp;                          MessageQueue queue, TransactionTemplate transactionTemplate, Clock clock) {</b>
+<b class="fc">&nbsp;        this.messageRepository = messageRepository;</b>
+<b class="fc">&nbsp;        this.clientRepository = clientRepository;</b>
+<b class="fc">&nbsp;        this.queue = queue;</b>
+<b class="fc">&nbsp;        this.transactionTemplate = transactionTemplate;</b>
+<b class="fc">&nbsp;        this.clock = clock;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public Message send(String senderId, String recipientId, String content, MessagePriority priority) {
+<b class="fc">&nbsp;        var effective = priority != null</b>
+<b class="fc">&nbsp;                ? priority</b>
+<b class="fc">&nbsp;                : MessagePriority.NORMAL;</b>
+<b class="fc">&nbsp;        var period = LocalDate.now(clock).withDayOfMonth(1);</b>
+&nbsp;
+&nbsp;        // Débito + gravação na mesma transação; qualquer falha desfaz os dois.
+<b class="fc">&nbsp;        var message = transactionTemplate.execute(status -&gt; {</b>
+<b class="fc">&nbsp;            var client = clientRepository</b>
+<b class="fc">&nbsp;                    .findWithLockById(senderId)</b>
+<b class="fc">&nbsp;                    .orElseThrow(() -&gt; new NotFoundException(&quot;Cliente não encontrado: &quot; + senderId));</b>
+<b class="fc">&nbsp;            if (!client.isActive()) {</b>
+<b class="fc">&nbsp;                throw new InactiveClientException();</b>
+&nbsp;            }
+<b class="fc">&nbsp;            client.charge(effective.cost(), period);</b>
+<b class="fc">&nbsp;            return messageRepository.save(</b>
+<b class="fc">&nbsp;                    Message.createQueued(senderId, recipientId, content, effective));</b>
+&nbsp;        });
+&nbsp;
+&nbsp;        // Só depois do commit: nunca há mensagem na fila sem cobrança confirmada.
+<b class="fc">&nbsp;        queue.enqueue(message);</b>
+<b class="fc">&nbsp;        log.info(&quot;Mensagem {} enfileirada: cliente={}, prioridade={}, custo={}, fila={}&quot;,</b>
+<b class="fc">&nbsp;                message.getId(), senderId, effective.value(), message.getCost(), queue.size());</b>
+<b class="fc">&nbsp;        return message;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Transactional(readOnly = true)
+&nbsp;    public Page&lt;Message&gt; search(String senderId, MessageStatus status, MessagePriority priority,
+&nbsp;                                String recipientId, Instant from, Instant to, int page, int size) {
+<b class="fc">&nbsp;        Specification&lt;Message&gt; spec = (root, _, cb) -&gt; cb.equal(root.get(&quot;senderId&quot;), senderId);</b>
+&nbsp;
+<b class="fc">&nbsp;        if (status != null)</b>
+<b class="fc">&nbsp;            spec = spec.and((root, _, cb) -&gt;</b>
+<b class="fc">&nbsp;                    cb.equal(root.get(&quot;status&quot;), status));</b>
+&nbsp;
+<b class="fc">&nbsp;        if (priority != null)</b>
+<b class="fc">&nbsp;            spec = spec.and((root, _, cb) -&gt;</b>
+<b class="fc">&nbsp;                    cb.equal(root.get(&quot;priority&quot;), priority));</b>
+&nbsp;
+<b class="pc">&nbsp;        if (recipientId != null &amp;&amp; !recipientId.isBlank())</b>
+<b class="fc">&nbsp;            spec = spec.and((root, _, cb) -&gt;</b>
+<b class="fc">&nbsp;                    cb.equal(root.get(&quot;recipientId&quot;), recipientId));</b>
+&nbsp;
+<b class="fc">&nbsp;        if (from != null)</b>
+<b class="fc">&nbsp;            spec = spec.and((root, _, cb) -&gt;</b>
+<b class="fc">&nbsp;                    cb.greaterThanOrEqualTo(root.&lt;Instant&gt;get(&quot;timestamp&quot;), from));</b>
+&nbsp;
+<b class="fc">&nbsp;        if (to != null)</b>
+<b class="fc">&nbsp;            spec = spec.and((root, _, cb) -&gt;</b>
+<b class="fc">&nbsp;                    cb.lessThanOrEqualTo(root.&lt;Instant&gt;get(&quot;timestamp&quot;), to));</b>
+&nbsp;
+<b class="fc">&nbsp;        var pageable = PageRequest.of(</b>
+&nbsp;                page,
+&nbsp;                size,
+<b class="fc">&nbsp;                Sort.by(Sort.Order.desc(&quot;timestamp&quot;), Sort.Order.asc(&quot;id&quot;)));</b>
+&nbsp;
+<b class="fc">&nbsp;        return messageRepository.findAll(spec, pageable);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Só devolve a mensagem se ela pertencer ao cliente informado.
+&nbsp;     */
+&nbsp;    @Transactional(readOnly = true)
+&nbsp;    public Message findOwned(String id, String clientId) {
+<b class="fc">&nbsp;        return messageRepository.findByIdAndSenderId(id, clientId)</b>
+<b class="fc">&nbsp;                .orElseThrow(() -&gt; new NotFoundException(&quot;Mensagem não encontrada: &quot; + id));</b>
+&nbsp;    }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-11-17 15:19</div>
+</div>
+</body>
+</html>

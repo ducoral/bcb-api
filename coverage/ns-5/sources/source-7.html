@@ -1,0 +1,99 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > ClientRepository</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">du.coral.bcb.client</a>
+</div>
+
+<h1>Coverage Summary for Class: ClientRepository (du.coral.bcb.client)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+</tr>
+<tr>
+  <td class="name">ClientRepository</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package du.coral.bcb.client;
+&nbsp;
+&nbsp;import jakarta.persistence.LockModeType;
+&nbsp;import jakarta.persistence.QueryHint;
+&nbsp;import org.springframework.data.jpa.repository.*;
+&nbsp;import org.springframework.data.repository.query.Param;
+&nbsp;
+&nbsp;import java.time.LocalDate;
+&nbsp;import java.util.Optional;
+&nbsp;
+&nbsp;public interface ClientRepository extends JpaRepository&lt;Client, String&gt; {
+&nbsp;
+&nbsp;    boolean existsByDocumentId(String documentId);
+&nbsp;
+&nbsp;    boolean existsByDocumentIdAndIdNot(String documentId, String id);
+&nbsp;
+&nbsp;    /** SELECT ... FOR UPDATE. Desiste após 3 s em vez de esperar indefinidamente. */
+&nbsp;    @Lock(LockModeType.PESSIMISTIC_WRITE)
+&nbsp;    @QueryHints(@QueryHint(name = &quot;jakarta.persistence.lock.timeout&quot;, value = &quot;3000&quot;))
+&nbsp;    Optional&lt;Client&gt; findWithLockById(String id);
+&nbsp;
+&nbsp;    /** Restaura o limite mensal dos pós-pagos que ainda não foram renovados neste período. */
+&nbsp;    @Modifying(clearAutomatically = true)
+&nbsp;    @Query(value = &quot;&quot;&quot;
+&nbsp;            UPDATE client
+&nbsp;               SET credit_limit = monthly_limit, limit_period = :period
+&nbsp;             WHERE plan_type = &#39;POSTPAID&#39;
+&nbsp;               AND (limit_period IS NULL OR limit_period &lt; :period)
+&nbsp;            &quot;&quot;&quot;, nativeQuery = true)
+&nbsp;    int resetMonthlyLimits(@Param(&quot;period&quot;) LocalDate period);
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2026-11-17 15:19</div>
+</div>
+</body>
+</html>
