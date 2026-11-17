@@ -29,7 +29,8 @@ public class MessageQueueInitializer implements ApplicationRunner {
     public int load() {
         var pending = repository.findByStatusOrderByTimestampAsc(MessageStatus.QUEUED);
         var added = queue.enqueueAll(pending);
-        log.info("{} mensagem(ns) com status queued carregada(s) na fila", added);
+        log.info("{} mensagem(ns) com status queued carregada(s) na fila (tamanho atual: {})",
+                added, queue.size());
         return added;
     }
 }

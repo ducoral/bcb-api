@@ -3,6 +3,8 @@ package du.coral.bcb.message;
 import du.coral.bcb.client.ClientRepository;
 import du.coral.bcb.shared.error.InactiveClientException;
 import du.coral.bcb.shared.error.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -17,6 +19,8 @@ import java.time.LocalDate;
 
 @Service
 public class MessageService {
+
+    private static final Logger log = LoggerFactory.getLogger(MessageService.class);
 
     private final MessageRepository messageRepository;
     private final ClientRepository clientRepository;
@@ -54,6 +58,8 @@ public class MessageService {
 
         // Só depois do commit: nunca há mensagem na fila sem cobrança confirmada.
         queue.enqueue(message);
+        log.info("Mensagem {} enfileirada: cliente={}, prioridade={}, custo={}, fila={}",
+                message.getId(), senderId, effective.value(), message.getCost(), queue.size());
         return message;
     }
 
@@ -90,7 +96,9 @@ public class MessageService {
         return messageRepository.findAll(spec, pageable);
     }
 
-    /** Só devolve a mensagem se ela pertencer ao cliente informado. */
+    /**
+     * Só devolve a mensagem se ela pertencer ao cliente informado.
+     */
     @Transactional(readOnly = true)
     public Message findOwned(String id, String clientId) {
         return messageRepository.findByIdAndSenderId(id, clientId)
