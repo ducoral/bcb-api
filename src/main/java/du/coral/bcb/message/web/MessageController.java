@@ -1,10 +1,9 @@
-package du.coral.bcb.message;
+package du.coral.bcb.message.web;
 
 import du.coral.bcb.auth.JwtAuthFilter;
-import du.coral.bcb.message.web.MessagePageResponse;
-import du.coral.bcb.message.web.MessageRequest;
-import du.coral.bcb.message.web.MessageResponse;
-import du.coral.bcb.message.web.MessageStatusResponse;
+import du.coral.bcb.message.MessagePriority;
+import du.coral.bcb.message.MessageService;
+import du.coral.bcb.message.MessageStatus;
 import du.coral.bcb.shared.config.OpenApiConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

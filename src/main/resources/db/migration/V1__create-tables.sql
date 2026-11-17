@@ -18,14 +18,14 @@ CREATE TABLE client
 
 CREATE TABLE message
 (
-    id              VARCHAR(64)    NOT NULL,
-    sender_id       VARCHAR(64)    NOT NULL,
-    recipient_id    VARCHAR(64)    NOT NULL,
-    content         VARCHAR(4000)  NOT NULL,
-    created_at      TIMESTAMPTZ    NOT NULL,
-    priority        VARCHAR(10)    NOT NULL,
-    status          VARCHAR(12)    NOT NULL,
-    cost            NUMERIC(10, 2) NOT NULL,
+    id           VARCHAR(64)    NOT NULL,
+    sender_id    VARCHAR(64)    NOT NULL,
+    recipient_id VARCHAR(64)    NOT NULL,
+    content      VARCHAR(4000)  NOT NULL,
+    created_at   TIMESTAMPTZ    NOT NULL,
+    priority     VARCHAR(10)    NOT NULL,
+    status       VARCHAR(12)    NOT NULL,
+    cost         NUMERIC(10, 2) NOT NULL,
 
     CONSTRAINT pk_message PRIMARY KEY (id),
     CONSTRAINT fk_message_sender FOREIGN KEY (sender_id) REFERENCES client (id)
@@ -36,3 +36,37 @@ CREATE INDEX idx_message_queued ON message (created_at) WHERE status = 'QUEUED';
 
 -- índice para a listagem
 CREATE INDEX idx_message_sender_created_at ON message (sender_id, created_at DESC);
+
+CREATE TABLE conversation
+(
+    id                   VARCHAR(64)   NOT NULL,
+    client_id            VARCHAR(64)   NOT NULL,
+    recipient_id         VARCHAR(64)   NOT NULL,
+    last_message_content VARCHAR(4000) NOT NULL,
+    last_message_time    TIMESTAMPTZ   NOT NULL,
+    unread_count         INTEGER       NOT NULL DEFAULT 0,
+
+    CONSTRAINT pk_conversation PRIMARY KEY (id),
+    CONSTRAINT fk_conversation_client FOREIGN KEY (client_id) REFERENCES client (id),
+    CONSTRAINT uk_conversation_client_recipient UNIQUE (client_id, recipient_id)
+);
+
+CREATE INDEX idx_conversation_client_last_message
+    ON conversation (client_id, last_message_time DESC);
+
+CREATE TABLE conversation_message
+(
+    id              VARCHAR(64)   NOT NULL,
+    conversation_id VARCHAR(64)   NOT NULL,
+    sender_id       VARCHAR(64)   NOT NULL,
+    recipient_id    VARCHAR(64)   NOT NULL,
+    content         VARCHAR(4000) NOT NULL,
+    created_at      TIMESTAMPTZ   NOT NULL,
+
+    CONSTRAINT pk_conversation_message PRIMARY KEY (id),
+    CONSTRAINT fk_conversation_message_conversation
+        FOREIGN KEY (conversation_id) REFERENCES conversation (id)
+);
+
+CREATE INDEX idx_conversation_message_conversation_created
+    ON conversation_message (conversation_id, created_at DESC);

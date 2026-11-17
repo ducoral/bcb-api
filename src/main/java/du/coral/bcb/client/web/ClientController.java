@@ -1,9 +1,6 @@
-package du.coral.bcb.client;
+package du.coral.bcb.client.web;
 
-import du.coral.bcb.client.web.BalanceResponse;
-import du.coral.bcb.client.web.ClientCreateRequest;
-import du.coral.bcb.client.web.ClientResponse;
-import du.coral.bcb.client.web.ClientUpdateRequest;
+import du.coral.bcb.client.ClientService;
 import du.coral.bcb.shared.config.OpenApiConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.headers.Header;

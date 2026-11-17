@@ -1,7 +1,6 @@
-package du.coral.bcb.auth;
+package du.coral.bcb.auth.web;
 
-import du.coral.bcb.auth.web.LoginRequest;
-import du.coral.bcb.auth.web.LoginResponse;
+import du.coral.bcb.auth.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;

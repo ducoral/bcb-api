@@ -95,6 +95,10 @@ public class Message implements Persistable<String> {
         this.isNew = false;
     }
 
+    public void changeStatus(MessageStatus status) {
+        this.status = status;
+    }
+
     public String getSenderId() {
         return senderId;
     }

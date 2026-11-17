@@ -45,7 +45,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties = "app.jwt.secret=test-secret-test-secret-test-secret-0123")
+@SpringBootTest(properties = {
+        "app.jwt.secret=test-secret-test-secret-test-secret-0123",
+        "app.conversation-worker.enabled=false"})
 @Testcontainers
 class MessageIT {
 
