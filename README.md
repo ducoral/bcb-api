@@ -59,7 +59,7 @@ stateDiagram-v2
     queued --> failed: erro no processamento
 ```
 
-Os status `processing`, `delivered` e `read` existem no modelo, mas ainda não têm transições (veja [Limitações](#limitações-conhecidas-e-próximos-passos)).
+Os status `processing`, `delivered` e `read` existem no modelo, mas ainda não têm transições.
 
 ### 3. Sistema de pagamento
 
