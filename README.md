@@ -24,7 +24,6 @@ Repositório: <https://github.com/ducoral/bcb-api>
 - [Estrutura do projeto](#estrutura-do-projeto)
 - [Testes e cobertura](#testes-e-cobertura)
 - [Decisões de projeto](#decisões-de-projeto)
-- [Limitações conhecidas e próximos passos](#limitações-conhecidas-e-próximos-passos)
 
 ## Visão geral
 
